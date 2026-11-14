@@ -1,0 +1,1919 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Factory Smart Telemetry & Multi-Material Inventory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    .font-mono-num {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    @keyframes waveFlow {
+      0% { transform: translateX(0); }
+      50% { transform: translateX(-25%); }
+      100% { transform: translateX(0); }
+    }
+    .liquid-wave {
+      animation: waveFlow 6s ease-in-out infinite;
+    }
+    /* Adaptive Glass Panel for Light (Default) & Dark Mode */
+    .surface-card {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 20px -4px rgba(15, 23, 42, 0.06);
+    }
+    .dark .surface-card {
+      background: rgba(30, 41, 59, 0.74);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+    }
+    .card-hover {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      border-color: #38bdf8;
+      box-shadow: 0 12px 28px -8px rgba(14, 165, 233, 0.22);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 text-slate-800 dark:bg-[#0b1120] dark:text-slate-100 transition-colors duration-200">
+
+  <!-- ===================================================================== -->
+  <!-- LOGIN SCREEN OVERLAY                                                  -->
+  <!-- ===================================================================== -->
+  <div id="loginOverlay" class="fixed inset-0 z-50 bg-slate-100 dark:bg-[#0b1120] flex items-center justify-center p-4">
+    <div class="surface-card rounded-3xl max-w-md w-full p-7 md:p-8 shadow-2xl space-y-6">
+      <div class="text-center space-y-2">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-lg shadow-sky-500/25">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+        <h1 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">FACTORY TELEMETRY <span class="text-sky-600 dark:text-sky-400">HUB</span></h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400">เข้าสู่ระบบตามสิทธิ์แผนกเพื่อบันทึกและติดตามวัตถุดิบ</p>
+      </div>
+
+      <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">ชื่อผู้ใช้ (Username)</label>
+          <input type="text" id="loginUser" required autocomplete="username" placeholder="เช่น admin, staff1 (LPG) หรือ staff2 (DIESEL)" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:border-sky-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">รหัสผ่าน / PIN (Password)</label>
+          <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:border-sky-500 focus:outline-none">
+        </div>
+
+        <div id="loginErrorBox" class="hidden rounded-xl bg-red-50 dark:bg-red-950/70 border border-red-300 dark:border-red-500/40 px-3.5 py-2.5 text-xs text-red-700 dark:text-red-300">
+          ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง
+        </div>
+
+        <button type="submit" id="btnLoginSubmit" class="w-full py-3 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-semibold text-sm shadow-lg shadow-sky-600/25 transition">
+          เข้าสู่ระบบ (Login)
+        </button>
+      </form>
+
+      <div class="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+        <div id="loginModeHint" class="leading-relaxed">
+          ทดลอง: <strong>admin</strong> / 1234 (ทุกสิทธิ์) | <strong>staff1</strong> / 1234 (เฉพาะ LPG) | <strong>staff2</strong> / 1234 (เฉพาะ DIESEL)
+        </div>
+        <div class="flex justify-between items-center pt-1">
+          <button type="button" onclick="toggleTheme()" class="text-slate-600 dark:text-slate-300 hover:underline">สลับโหมด สว่าง/มืด</button>
+          <button type="button" onclick="openSettingsModal()" class="text-sky-600 dark:text-sky-400 hover:underline font-medium">ตั้งค่า Google Sheets URL</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- TOP NAVBAR -->
+  <header class="sticky top-0 z-40 surface-card border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="showMainPortal()">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-md shadow-sky-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base md:text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
+            FACTORY TELEMETRY <span class="text-sky-600 dark:text-sky-400">HUB</span>
+          </h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">ระบบติดตามวัตถุดิบ & วางแผนสั่งซื้อออนไลน์</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Theme Toggle Button (Saves per User) -->
+        <button onclick="toggleTheme()" title="สลับโหมดสว่าง / โหมดมืด (บันทึกค่าตามผู้ใช้)" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-amber-300 transition">
+          <!-- Sun Icon (shown in dark mode) -->
+          <svg id="iconSun" class="hidden dark:block w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <!-- Moon Icon (shown in light mode) -->
+          <svg id="iconMoon" class="block dark:hidden w-4 h-4 text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+        </button>
+
+        <!-- Logged-in User Badge -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span id="navUserName" class="font-semibold text-slate-800 dark:text-white">-</span>
+          <span id="navUserRole" class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-sky-500/15 text-sky-700 dark:text-sky-400">STAFF</span>
+        </div>
+
+        <!-- Sync Status Pill -->
+        <div id="syncBadge" class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+          <span id="syncDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span id="syncText">โหมดทดลอง</span>
+        </div>
+
+        <!-- Admin: Recycle Bin Button -->
+        <button id="btnNavTrash" onclick="openTrashModal()" class="hidden items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-700/60 text-xs font-medium text-amber-800 dark:text-amber-300 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          <span class="hidden md:inline">ถังขยะ</span>
+          <span id="trashCountBadge" class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-white">0</span>
+        </button>
+
+        <!-- Admin: User Permissions Button -->
+        <button id="btnNavUsers" onclick="openUsersModal()" class="hidden items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 transition">
+          <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <span class="hidden md:inline">สิทธิ์พนักงาน</span>
+        </button>
+
+        <!-- Admin: Google Sheets Settings -->
+        <button id="btnNavSettings" onclick="openSettingsModal()" class="hidden items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 transition">
+          <svg class="w-4 h-4 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span class="hidden md:inline">เชื่อมต่อ</span>
+        </button>
+
+        <!-- Logout Button -->
+        <button onclick="handleLogout()" title="ออกจากระบบ" class="px-3 py-2 rounded-xl bg-red-50 dark:bg-red-950/60 hover:bg-red-100 dark:hover:bg-red-900/70 border border-red-300 dark:border-red-800/60 text-xs font-medium text-red-700 dark:text-red-300 transition">
+          ออก
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 py-6">
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 1: MAIN PORTAL (หน้าหลักเลือกวัตถุดิบตามสิทธิ์ User)             -->
+    <!-- ===================================================================== -->
+    <section id="viewMainPortal" class="space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">OVERVIEW PORTAL</span>
+          <h2 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mt-1">เลือกวัตถุดิบที่รับผิดชอบ</h2>
+          <p id="portalSubtitle" class="text-sm text-slate-500 dark:text-slate-400 mt-1">คลิกที่การ์ดวัตถุดิบเพื่อดูระดับถังแบบเรียลไทม์ กราฟแนวโน้ม และบันทึกยอดประจำวัน</p>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <button onclick="syncFromGoogleSheets(true)" class="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 flex items-center gap-2 transition shadow-sm">
+            <svg id="refreshIcon" class="w-4 h-4 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span>รีเฟรชข้อมูล</span>
+          </button>
+          <button id="btnAddMaterial" onclick="openAddMaterialModal()" class="hidden px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 items-center gap-2 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span>เพิ่มวัตถุดิบใหม่</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary Banner Across Permitted Materials -->
+      <div id="portalAlertBanner" class="hidden rounded-2xl bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-500/40 p-4 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-500/20 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-red-800 dark:text-red-200">แจ้งเตือนจุดสั่งซื้อ (Reorder Alert)</h3>
+            <p id="portalAlertText" class="text-xs text-red-700 dark:text-red-300 mt-0.5"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Material Cards Grid -->
+      <div id="materialCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Rendered dynamically by JS -->
+      </div>
+    </section>
+
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 2: MATERIAL TELEMETRY & ENTRY DASHBOARD                          -->
+    <!-- ===================================================================== -->
+    <section id="viewMaterialDetail" class="hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <button onclick="showMainPortal()" class="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
+            <span>กลับหน้าหลัก</span>
+          </button>
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="detailMatBadge" class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-300 dark:border-sky-500/30">LPG</span>
+              <h2 id="detailMatName" class="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">ก๊าซ LPG (ถังหลักโรงงาน)</h2>
+              <!-- Admin Edit Material Config Button -->
+              <button id="btnEditMaterialConfig" onclick="openEditMaterialModal()" title="แก้ไขการตั้งค่าถังและรายการเครื่องจักร" class="hidden ml-1 px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-xs font-medium text-slate-700 dark:text-sky-300 border border-slate-300 dark:border-slate-700 items-center gap-1 transition">
+                <span>⚙️ ตั้งค่าถัง/เครื่องจักร</span>
+              </button>
+            </div>
+            <p id="detailMatSub" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ความจุถัง: 2,000 กก. | จุดสั่งซื้อขั้นต่ำ: 500 กก.</p>
+          </div>
+        </div>
+
+        <!-- Quick Switcher Tabs (Only shows permitted materials) -->
+        <div id="quickMaterialTabs" class="flex items-center gap-1.5 bg-white dark:bg-slate-900/90 p-1.5 rounded-xl border border-slate-300 dark:border-slate-800 overflow-x-auto shadow-sm">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- TOP ROW: TANK + GAUGE (Left) & QUICK ENTRY FORM (Right) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left 7 Cols: Interactive Tank & Industrial Gauge -->
+        <div class="lg:col-span-7 surface-card rounded-2xl p-6 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse"></span>
+              <span>สถานะถังเก็บและเกจวัดแรงดัน (Live Telemetry)</span>
+            </h3>
+            <span id="detailStatusPill" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30">
+              สถานะปกติ
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center my-auto py-2">
+            <!-- SVG Animated Storage Tank -->
+            <div class="flex flex-col items-center">
+              <div class="relative w-44 h-64">
+                <svg viewBox="0 0 180 260" class="w-full h-full drop-shadow-xl">
+                  <defs>
+                    <clipPath id="tankClip">
+                      <rect x="30" y="25" width="120" height="200" rx="55" />
+                    </clipPath>
+                    <linearGradient id="tankMetal" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#334155"/>
+                      <stop offset="30%" stop-color="#475569"/>
+                      <stop offset="70%" stop-color="#334155"/>
+                      <stop offset="100%" stop-color="#1e293b"/>
+                    </linearGradient>
+                    <linearGradient id="liquidGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop id="liqStop1" offset="0%" stop-color="#38bdf8"/>
+                      <stop id="liqStop2" offset="100%" stop-color="#0284c7"/>
+                    </linearGradient>
+                  </defs>
+
+                  <rect x="82" y="8" width="16" height="18" rx="3" fill="#64748b"/>
+                  <rect x="70" y="5" width="40" height="6" rx="3" fill="#94a3b8"/>
+
+                  <path d="M50 215 L42 248 L56 248 L64 220 Z" fill="#475569"/>
+                  <path d="M130 215 L138 248 L124 248 L116 220 Z" fill="#475569"/>
+
+                  <rect x="30" y="25" width="120" height="200" rx="55" fill="url(#tankMetal)" stroke="#64748b" stroke-width="3"/>
+
+                  <g clip-path="url(#tankClip)">
+                    <rect id="tankLiquidRect" x="25" y="100" width="130" height="140" fill="url(#liquidGrad)" style="transition: y 0.8s ease, height 0.8s ease;" />
+                    <path id="tankWavePath" class="liquid-wave" d="M0 100 Q 45 92, 90 100 T 180 100 T 270 100 V 120 H 0 Z" fill="#bae6fd" opacity="0.45" style="transition: transform 0.8s ease;"/>
+                  </g>
+
+                  <line id="tankMinLine" x1="26" y1="175" x2="154" y2="175" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="5,4"/>
+                  <text id="tankMinText" x="90" y="170" text-anchor="middle" fill="#fecaca" font-size="9" font-weight="bold">MIN STOCK</text>
+
+                  <rect x="44" y="42" width="10" height="165" rx="5" fill="#ffffff" opacity="0.16"/>
+
+                  <rect x="52" y="105" width="76" height="36" rx="8" fill="#0f172a" opacity="0.85" stroke="#475569" stroke-width="1"/>
+                  <text id="tankPctText" x="90" y="129" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="bold" font-family="JetBrains Mono">75.0%</text>
+                </svg>
+              </div>
+              <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">ระดับของเหลวในถังเทียบเส้น Min Stock</span>
+            </div>
+
+            <!-- Industrial Dial Gauge + KPI Metrics -->
+            <div class="flex flex-col items-center space-y-4">
+              <div class="relative w-48 h-32">
+                <svg viewBox="0 0 200 125" class="w-full h-full">
+                  <path d="M 20 105 A 80 80 0 0 1 180 105" fill="none" stroke="#cbd5e1" stroke-width="18" stroke-linecap="round"/>
+                  <path d="M 20 105 A 80 80 0 0 1 43 48" fill="none" stroke="#ef4444" stroke-width="12" stroke-linecap="round"/>
+                  <path d="M 43 48 A 80 80 0 0 1 100 25" fill="none" stroke="#f59e0b" stroke-width="12"/>
+                  <path d="M 100 25 A 80 80 0 0 1 180 105" fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round"/>
+
+                  <text x="18" y="122" fill="#64748b" font-size="10" font-family="JetBrains Mono">0%</text>
+                  <text x="92" y="14" fill="#64748b" font-size="10" font-family="JetBrains Mono">50%</text>
+                  <text x="166" y="122" fill="#64748b" font-size="10" font-family="JetBrains Mono">100%</text>
+
+                  <g id="gaugeNeedle" transform="rotate(0, 100, 105)" style="transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                    <polygon points="96,105 100,32 104,105" fill="#1e293b"/>
+                    <circle cx="100" cy="105" r="8" fill="#0284c7" stroke="#ffffff" stroke-width="2"/>
+                  </g>
+                </svg>
+              </div>
+
+              <div class="w-full grid grid-cols-3 gap-2 text-center">
+                <div class="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5">
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">คงเหลือล่าสุด</div>
+                  <div id="kpiStockVal" class="font-mono-num text-sm md:text-base font-bold text-sky-600 dark:text-sky-400 mt-0.5">1,115</div>
+                  <div id="kpiStockUnit" class="text-[10px] text-slate-400">กก.</div>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5">
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">ใช้เฉลี่ย/วัน</div>
+                  <div id="kpiAvgVal" class="font-mono-num text-sm md:text-base font-bold text-slate-900 dark:text-white mt-0.5">172</div>
+                  <div id="kpiAvgUnit" class="text-[10px] text-slate-400">กก./วัน</div>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5">
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">อยู่ได้อีก</div>
+                  <div id="kpiDaysVal" class="font-mono-num text-sm md:text-base font-bold text-amber-600 dark:text-amber-400 mt-0.5">6.5</div>
+                  <div class="text-[10px] text-slate-400">วัน</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 5 Cols: Quick Entry Form + Machine Selector -->
+        <div class="lg:col-span-5 surface-card rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              <span>บันทึกยอดประจำวัน</span>
+            </h3>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">ผู้บันทึก: <strong id="formRecorderName" class="text-sky-600 dark:text-sky-400">-</strong></span>
+          </div>
+
+          <form id="entryForm" onsubmit="handleEntrySubmit(event)" class="space-y-3.5">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">วันที่บันทึก / มาส่ง</label>
+                <input type="date" id="inpDate" required class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:border-sky-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  คงเหลือตอนเช้า (<span class="unit-label">กก.</span>)
+                </label>
+                <input type="number" step="any" id="inpStock" oninput="updateLivePreview()" required placeholder="เช่น 950" class="w-full px-3 py-2 rounded-xl bg-amber-50/70 dark:bg-slate-900 border border-amber-400 dark:border-amber-500/50 text-sm font-mono-num font-bold text-amber-800 dark:text-amber-300 focus:border-amber-500 focus:outline-none">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  รับเข้า / มาส่งวันนี้ (<span class="unit-label">กก.</span>)
+                </label>
+                <input type="number" step="any" id="inpReceived" oninput="updateLivePreview()" value="0" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm font-mono-num font-bold text-emerald-700 dark:text-emerald-400 focus:border-sky-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">คำนวณจาก % หน้าปัด (ตัวช่วย)</label>
+                <div class="flex items-center gap-1.5">
+                  <input type="number" step="any" min="0" max="100" id="inpPctHelper" oninput="convertPctToStock()" placeholder="เช่น 48" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 text-sm font-mono-num text-slate-900 dark:text-slate-200 focus:border-sky-500 focus:outline-none">
+                  <span class="text-xs text-slate-500">%</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">เครื่องจักรที่เปิดใช้งานในรอบวัน</label>
+              <div id="machineCheckboxes" class="flex flex-wrap gap-1.5">
+                <!-- Rendered by JS -->
+              </div>
+            </div>
+
+            <div>
+              <input type="text" id="inpNote" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี) เช่น เติมรอบเช้า..." class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-200 focus:border-sky-500 focus:outline-none">
+            </div>
+
+            <div class="rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 px-3.5 py-2.5 flex items-center justify-between text-xs">
+              <div>
+                <span class="text-slate-500 dark:text-slate-400">ใช้ไปเมื่อวาน: </span>
+                <span id="previewUsage" class="font-mono-num font-bold text-slate-900 dark:text-white">-</span>
+              </div>
+              <div>
+                <span class="text-slate-500 dark:text-slate-400">คาดการณ์อยู่ได้: </span>
+                <span id="previewDays" class="font-mono-num font-bold text-amber-600 dark:text-amber-400">-</span>
+              </div>
+            </div>
+
+            <button type="submit" id="btnSubmitEntry" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>บันทึกข้อมูลทันที (อัปเดตออโต้)</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- MIDDLE ROW: TREND CHARTS -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="surface-card rounded-2xl p-5">
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3">1. แนวโน้มปริมาณคงเหลือรายวัน เทียบจุดสั่งซื้อ (Min Stock)</h3>
+          <div class="h-64">
+            <canvas id="chartStockTrend"></canvas>
+          </div>
+        </div>
+        <div class="surface-card rounded-2xl p-5">
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3">2. ยอดใช้จริงรายวัน & เครื่องจักรที่เดินเครื่อง</h3>
+          <div class="h-64">
+            <canvas id="chartUsageTrend"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM ROW: RECENT HISTORY TABLE WITH SEARCH & ADMIN ACTIONS -->
+      <div class="surface-card rounded-2xl p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">ประวัติการบันทึกข้อมูล & รายการเครื่องจักรที่ใช้ในแต่ละวัน</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">เรียงจากล่าสุดไปเก่าสุด (อัปเดตและคำนวณยอดใช้ใหม่อัตโนมัติเมื่อแก้ไข)</p>
+          </div>
+          <div class="relative w-full sm:w-64">
+            <input type="text" id="inpSearchHistory" oninput="renderHistoryTableFromState()" placeholder="ค้นหาวันที่, เครื่องจักร, ผู้บันทึก..." class="w-full pl-9 pr-3 py-2 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-sky-500 focus:outline-none">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-700/80 text-xs text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-900/40">
+                <th class="py-3 px-3">วันที่</th>
+                <th class="py-3 px-3 text-right">คงเหลือเช้า</th>
+                <th class="py-3 px-3 text-right">รับเข้า</th>
+                <th class="py-3 px-3 text-right">ใช้จริง</th>
+                <th class="py-3 px-3">เครื่องจักรที่ใช้งาน</th>
+                <th class="py-3 px-3">ผู้บันทึก</th>
+                <th class="py-3 px-3">หมายเหตุ</th>
+                <th id="thAdminActions" class="hidden py-3 px-3 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody" class="divide-y divide-slate-200 dark:divide-slate-800/70 text-xs md:text-sm">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: EDIT LOG ENTRY (Admin Only)                                  -->
+  <!-- ===================================================================== -->
+  <div id="editLogModal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="surface-card rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">แก้ไขรายการบันทึก (Admin Edit)</h3>
+        <button onclick="closeEditLogModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl">&times;</button>
+      </div>
+      <p class="text-xs text-slate-500 dark:text-slate-400">
+        ระบบจะคำนวณยอดใช้จริงของแถวนี้และวันถัดไปให้ใหม่ทั้งลูกโซ่ พร้อมเก็บประวัติการแก้ไขลง <code class="text-sky-600 dark:text-sky-400">Audit_Log</code>
+      </p>
+      <form onsubmit="handleEditLogSubmit(event)" class="space-y-3">
+        <input type="hidden" id="editLogId">
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">วันที่</label>
+            <input type="date" id="editLogDate" required class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">คงเหลือเช้า</label>
+            <input type="number" step="any" id="editLogStock" required class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-mono-num text-slate-900 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">รับเข้า</label>
+            <input type="number" step="any" id="editLogRecv" required class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-mono-num text-slate-900 dark:text-white">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1.5">เครื่องจักรที่ใช้งาน</label>
+          <div id="editMachineCheckboxes" class="flex flex-wrap gap-1.5"></div>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">หมายเหตุ</label>
+          <input type="text" id="editLogNote" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeEditLogModal()" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300">ยกเลิก</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white">บันทึกการแก้ไข</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: RECYCLE BIN / TRASH ARCHIVE (Admin Only)                     -->
+  <!-- ===================================================================== -->
+  <div id="trashModal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="surface-card rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white">ถังขยะสำรองข้อมูล (Deleted Archive)</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">รายการที่ถูกลบจะถูกเก็บสำรองไว้ที่นี่ สามารถกดกู้คืนกลับเข้าตารางหลักได้ตลอดเวลา</p>
+        </div>
+        <button onclick="closeTrashModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl">&times;</button>
+      </div>
+      <div class="max-h-80 overflow-y-auto overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <th class="py-2.5 px-3">วัตถุดิบ</th>
+              <th class="py-2.5 px-3">วันที่ข้อมูล</th>
+              <th class="py-2.5 px-3 text-right">คงเหลือ</th>
+              <th class="py-2.5 px-3 text-right">รับเข้า</th>
+              <th class="py-2.5 px-3">ลบโดย / เวลา</th>
+              <th class="py-2.5 px-3 text-center">กู้คืน</th>
+            </tr>
+          </thead>
+          <tbody id="trashTableBody" class="divide-y divide-slate-200 dark:divide-slate-800">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="closeTrashModal()" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: EDIT EXISTING MATERIAL & MACHINES CONFIG (Admin Only)        -->
+  <!-- ===================================================================== -->
+  <div id="editMatModal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="surface-card rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">แก้ไขการตั้งค่าถัง & รายชื่อเครื่องจักร</h3>
+        <button onclick="closeEditMaterialModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl">&times;</button>
+      </div>
+      <form onsubmit="handleEditMaterialSubmit(event)" class="space-y-3">
+        <input type="hidden" id="editMatId">
+        <div class="grid grid-cols-3 gap-3">
+          <div class="col-span-2">
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">ชื่อวัตถุดิบ / ถังเก็บ</label>
+            <input type="text" id="editMatName" required class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">หน่วยนับ</label>
+            <input type="text" id="editMatUnit" required class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-2.5">
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">ความจุถัง</label>
+            <input type="number" id="editMatCap" required class="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">Min Stock</label>
+            <input type="number" id="editMatMin" required class="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">สั่งล่วงหน้า(วัน)</label>
+            <input type="number" id="editMatLead" required class="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">สีถัง/การ์ด</label>
+            <input type="color" id="editMatColor" class="w-full h-9 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 cursor-pointer">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">รายชื่อเครื่องจักรที่ใช้ (เพิ่ม/ลบ/แก้ คั่นด้วยลูกน้ำ ,)</label>
+          <textarea id="editMatMachines" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeEditMaterialModal()" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300">ยกเลิก</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white">บันทึกการตั้งค่า</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: USER PERMISSIONS MANAGEMENT (Admin Only)                     -->
+  <!-- ===================================================================== -->
+  <div id="usersModal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="surface-card rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white">จัดการสิทธิ์พนักงาน (แบ่งตามวัตถุดิบ)</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดว่าพนักงานแต่ละคนมองเห็นและบันทึกข้อมูลวัตถุดิบตัวไหนได้บ้าง</p>
+        </div>
+        <button onclick="closeUsersModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl">&times;</button>
+      </div>
+
+      <!-- Existing Users Table -->
+      <div class="max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <th class="py-2 px-3">Username</th>
+              <th class="py-2 px-3">ชื่อ-สกุล / แผนก</th>
+              <th class="py-2 px-3">สิทธิ์</th>
+              <th class="py-2 px-3">วัตถุดิบที่ดูแล</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody" class="divide-y divide-slate-200 dark:divide-slate-800"></tbody>
+        </table>
+      </div>
+
+      <!-- Add / Update User Form -->
+      <form onsubmit="handleSaveUserSubmit(event)" class="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
+        <div class="text-xs font-bold text-slate-800 dark:text-slate-200">เพิ่มผู้ใช้ใหม่ หรือ อัปเดตสิทธิ์ผู้ใช้เดิม:</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <input type="text" id="usrName" required placeholder="Username (เช่น staff3)" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+          <input type="text" id="usrPass" placeholder="Password (ค่าเริ่ม 1234)" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+          <input type="text" id="usrFull" required placeholder="ชื่อแสดงผล (เช่น ช่างเอ)" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+          <select id="usrRole" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+            <option value="staff">Staff (พนักงาน)</option>
+            <option value="admin">Admin (ผู้ดูแล)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">เลือกวัตถุดิบที่อนุญาตให้เข้าถึง:</label>
+          <div id="userAllowedMatCheckboxes" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white">บันทึกสิทธิ์ผู้ใช้</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 5: ADD NEW MATERIAL (Admin Only)                                -->
+  <!-- ===================================================================== -->
+  <div id="addMatModal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="surface-card rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">เพิ่มวัตถุดิบใหม่เข้าระบบ</h3>
+        <button onclick="closeAddMaterialModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl">&times;</button>
+      </div>
+      <form onsubmit="handleAddMaterial(event)" class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">รหัสย่อ (ภาษาอังกฤษ)</label>
+            <input type="text" id="newMatId" required placeholder="เช่น CHEM01 หรือ OIL" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white uppercase">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">หน่วยนับ</label>
+            <input type="text" id="newMatUnit" required placeholder="เช่น ลิตร, กก., ถัง" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">ชื่อวัตถุดิบ / ถังเก็บ</label>
+          <input type="text" id="newMatName" required placeholder="เช่น น้ำมันเตา (ถัง 2) หรือ สารเคมีบำบัดน้ำ" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">ความจุเต็มถัง</label>
+            <input type="number" id="newMatCap" required value="1000" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">จุดสั่งซื้อ Min Stock</label>
+            <input type="number" id="newMatMin" required value="250" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">สีประจำการ์ด</label>
+            <input type="color" id="newMatColor" value="#10b981" class="w-full h-9 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 cursor-pointer">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">รายชื่อเครื่องจักรที่ใช้ (คั่นด้วยลูกน้ำ ,)</label>
+          <input type="text" id="newMatMachines" value="เครื่องจักร A, เครื่องจักร B, ไลน์ผลิต 1" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeAddMaterialModal()" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300">ยกเลิก</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white">สร้างวัตถุดิบใหม่</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 6: GOOGLE SHEETS CONNECTION SETTINGS                            -->
+  <!-- ===================================================================== -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="surface-card rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">เชื่อมต่อฐานข้อมูล Google Sheets</h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl">&times;</button>
+      </div>
+      <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+        นำ <strong>Web App URL</strong> จากการ Deploy โค้ด <code class="text-sky-600 dark:text-sky-400">Code-v3.gs</code> มาวางด้านล่างนี้ ระบบจะจัดการฐานข้อมูลทั้ง 5 ชีต (<code class="text-sky-600 dark:text-sky-400">Users</code>, <code class="text-sky-600 dark:text-sky-400">Materials_Config</code>, <code class="text-sky-600 dark:text-sky-400">Inventory_Log</code>, <code class="text-sky-600 dark:text-sky-400">Deleted_Archive</code>, <code class="text-sky-600 dark:text-sky-400">Audit_Log</code>) อัตโนมัติ
+      </p>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Google Apps Script Web App URL</label>
+        <input type="url" id="inpScriptUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-sky-500 focus:outline-none">
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="clearScriptUrl()" class="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300">ใช้โหมดทดลอง (Offline)</button>
+        <button onclick="saveScriptUrl()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white">บันทึกและเชื่อมต่อทันที</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastBox" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300">
+    <div class="surface-card border-emerald-500/50 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+      <span id="toastMsg" class="text-xs md:text-sm font-medium text-slate-900 dark:text-white">บันทึกข้อมูลสำเร็จ</span>
+    </div>
+  </div>
+
+
+  <script>
+    // =========================================================================
+    // DEFAULT DEMO DATA (Light Mode Default + Staff1/Staff2 Role Split)
+    // =========================================================================
+    const DEMO_USERS = [
+      { username: "admin", password: "1234", full_name: "ผู้จัดการโรงงาน (Admin)", role: "admin", allowed_materials: "ALL", theme_pref: "light" },
+      { username: "staff1", password: "1234", full_name: "พนักงานแผนก LPG (Staff 1)", role: "staff", allowed_materials: "LPG", theme_pref: "light" },
+      { username: "staff2", password: "1234", full_name: "พนักงานแผนกดีเซล (Staff 2)", role: "staff", allowed_materials: "DIESEL", theme_pref: "light" }
+    ];
+
+    const DEFAULT_MATERIALS = [
+      {
+        material_id: "LPG",
+        name: "ก๊าซ LPG (ถังหลักโรงงาน)",
+        unit: "กก.",
+        capacity: 2000,
+        min_stock: 500,
+        lead_days: 3,
+        color: "#2563eb",
+        machines: ["เตาอบ 1", "เตาอบ 2", "หม้อต้ม Boiler", "ไลน์พ่นสี", "เตาหลอม"]
+      },
+      {
+        material_id: "DIESEL",
+        name: "น้ำมันดีเซล (เครื่องปั่นไฟ/โฟล์คลิฟท์)",
+        unit: "ลิตร",
+        capacity: 5000,
+        min_stock: 1200,
+        lead_days: 2,
+        color: "#d97706",
+        machines: ["Generator 1", "Generator 2", "รถโฟล์คลิฟท์", "ปั๊มดับเพลิง"]
+      }
+    ];
+
+    const DEFAULT_LOGS = [
+      { id: "LPG-01", material_id: "LPG", date: "2026-11-08", opening_stock: 850, received: 0, daily_usage: 170, machines_used: "เตาอบ 1, หม้อต้ม Boiler", recorded_by: "พนักงานแผนก LPG (Staff 1)", note: "" },
+      { id: "LPG-02", material_id: "LPG", date: "2026-11-09", opening_stock: 675, received: 0, daily_usage: 175, machines_used: "เตาอบ 1, เตาอบ 2, หม้อต้ม Boiler", recorded_by: "พนักงานแผนก LPG (Staff 1)", note: "" },
+      { id: "LPG-03", material_id: "LPG", date: "2026-11-10", opening_stock: 495, received: 1300, daily_usage: 180, machines_used: "เตาอบ 1, เตาอบ 2, ไลน์พ่นสี", recorded_by: "ผู้จัดการโรงงาน (Admin)", note: "เติมรอบเช้า" },
+      { id: "LPG-04", material_id: "LPG", date: "2026-11-11", opening_stock: 1630, received: 0, daily_usage: 165, machines_used: "เตาอบ 1, หม้อต้ม Boiler", recorded_by: "พนักงานแผนก LPG (Staff 1)", note: "" },
+      { id: "LPG-05", material_id: "LPG", date: "2026-11-12", opening_stock: 1470, received: 0, daily_usage: 160, machines_used: "เตาอบ 1, เตาอบ 2", recorded_by: "พนักงานแผนก LPG (Staff 1)", note: "" },
+      { id: "LPG-06", material_id: "LPG", date: "2026-11-13", opening_stock: 1290, received: 0, daily_usage: 180, machines_used: "เตาอบ 1, เตาอบ 2, เตาหลอม", recorded_by: "พนักงานแผนก LPG (Staff 1)", note: "" },
+      { id: "LPG-07", material_id: "LPG", date: "2026-11-14", opening_stock: 1115, received: 0, daily_usage: 175, machines_used: "เตาอบ 1, หม้อต้ม Boiler, ไลน์พ่นสี", recorded_by: "พนักงานแผนก LPG (Staff 1)", note: "" },
+      { id: "DSL-01", material_id: "DIESEL", date: "2026-11-12", opening_stock: 1800, received: 0, daily_usage: 320, machines_used: "รถโฟล์คลิฟท์, Generator 1", recorded_by: "พนักงานแผนกดีเซล (Staff 2)", note: "" },
+      { id: "DSL-02", material_id: "DIESEL", date: "2026-11-13", opening_stock: 1450, received: 0, daily_usage: 350, machines_used: "รถโฟล์คลิฟท์, Generator 1", recorded_by: "พนักงานแผนกดีเซล (Staff 2)", note: "" },
+      { id: "DSL-03", material_id: "DIESEL", date: "2026-11-14", opening_stock: 1120, received: 0, daily_usage: 330, machines_used: "รถโฟล์คลิฟท์", recorded_by: "พนักงานแผนกดีเซล (Staff 2)", note: "ใกล้ถึงจุดสั่งซื้อ" }
+    ];
+
+    let appState = {
+      scriptUrl: localStorage.getItem("FACTORY_GAS_URL") || "",
+      currentUser: JSON.parse(sessionStorage.getItem("FACTORY_ACTIVE_USER")) || null,
+      materials: JSON.parse(localStorage.getItem("FACTORY_MATERIALS_V3")) || DEFAULT_MATERIALS,
+      logs: JSON.parse(localStorage.getItem("FACTORY_LOGS_V3")) || DEFAULT_LOGS,
+      archivedLogs: JSON.parse(localStorage.getItem("FACTORY_ARCHIVE_V3")) || [],
+      usersList: JSON.parse(localStorage.getItem("FACTORY_USERS_V3")) || DEMO_USERS,
+      activeMaterialId: "LPG",
+      theme: "light"
+    };
+
+    let stockChartInstance = null;
+    let usageChartInstance = null;
+
+    // =========================================================================
+    // THEME ENGINE (Light Mode Default + Per-User Persistence)
+    // =========================================================================
+    function applyTheme(mode) {
+      appState.theme = mode === "dark" ? "dark" : "light";
+      const htmlEl = document.documentElement;
+      if (appState.theme === "dark") {
+        htmlEl.classList.add("dark");
+      } else {
+        htmlEl.classList.remove("dark");
+      }
+      if (!document.getElementById("viewMaterialDetail").classList.contains("hidden")) {
+        const mat = appState.materials.find(m => m.material_id === appState.activeMaterialId);
+        if (mat) renderCharts(mat, getMaterialStats(mat));
+      }
+    }
+
+    function toggleTheme() {
+      const nextTheme = appState.theme === "light" ? "dark" : "light";
+      applyTheme(nextTheme);
+
+      if (appState.currentUser) {
+        appState.currentUser.theme_pref = nextTheme;
+        sessionStorage.setItem("FACTORY_ACTIVE_USER", JSON.stringify(appState.currentUser));
+        localStorage.setItem(`FACTORY_THEME_${appState.currentUser.username}`, nextTheme);
+
+        // Update local usersList cache
+        const uIdx = appState.usersList.findIndex(u => u.username === appState.currentUser.username);
+        if (uIdx >= 0) {
+          appState.usersList[uIdx].theme_pref = nextTheme;
+          saveLocalCache();
+        }
+
+        // Sync preference to Google Sheets
+        postToGoogleSheets({
+          action: "saveTheme",
+          username: appState.currentUser.username,
+          theme_pref: nextTheme
+        });
+      }
+      showToast(nextTheme === "light" ? "เปลี่ยนเป็นโหมดสว่าง (Light Mode)" : "เปลี่ยนเป็นโหมดมืด (Dark Mode)");
+    }
+
+    // =========================================================================
+    // INITIALIZATION & AUTHENTICATION
+    // =========================================================================
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("inpDate").value = new Date().toISOString().split("T")[0];
+      applyTheme("light"); // Default Light Mode
+      updateSyncBadge();
+
+      if (appState.scriptUrl) {
+        document.getElementById("loginModeHint").textContent = "เชื่อมต่อฐานข้อมูล Users บน Google Sheets แล้ว";
+      }
+
+      if (appState.currentUser) {
+        applyUserSession(appState.currentUser);
+      } else {
+        document.getElementById("loginOverlay").classList.remove("hidden");
+      }
+    });
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const u = document.getElementById("loginUser").value.trim().toLowerCase();
+      const p = document.getElementById("loginPass").value.trim();
+      const errBox = document.getElementById("loginErrorBox");
+      const btn = document.getElementById("btnLoginSubmit");
+
+      errBox.classList.add("hidden");
+      btn.disabled = true;
+      btn.textContent = "กำลังตรวจสอบสิทธิ์...";
+
+      try {
+        if (!appState.scriptUrl) {
+          const found = appState.usersList.find(acc => acc.username === u && (acc.password || "1234") === p);
+          if (found) {
+            const savedUserTheme = localStorage.getItem(`FACTORY_THEME_${found.username}`) || found.theme_pref || "light";
+            applyUserSession({
+              username: found.username,
+              full_name: found.full_name,
+              role: found.role,
+              allowed_materials: found.allowed_materials || "ALL",
+              theme_pref: savedUserTheme
+            });
+          } else {
+            errBox.textContent = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง (ทดลอง: admin/1234, staff1/1234, staff2/1234)";
+            errBox.classList.remove("hidden");
+          }
+        } else {
+          const res = await fetch(appState.scriptUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "login", username: u, password: p })
+          });
+          const data = await res.json();
+          if (data.status === "success" && data.user) {
+            const localOverrideTheme = localStorage.getItem(`FACTORY_THEME_${data.user.username}`);
+            if (localOverrideTheme) data.user.theme_pref = localOverrideTheme;
+            applyUserSession(data.user);
+          } else {
+            errBox.textContent = data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+            errBox.classList.remove("hidden");
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        errBox.textContent = "ไม่สามารถติดต่อ Google Sheets ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือ URL";
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "เข้าสู่ระบบ (Login)";
+      }
+    }
+
+    function applyUserSession(user) {
+      appState.currentUser = user;
+      sessionStorage.setItem("FACTORY_ACTIVE_USER", JSON.stringify(user));
+
+      // Apply user's last saved theme (defaults to light)
+      applyTheme(user.theme_pref || "light");
+
+      document.getElementById("loginOverlay").classList.add("hidden");
+      document.getElementById("navUserName").textContent = user.full_name;
+      document.getElementById("formRecorderName").textContent = user.full_name;
+      document.getElementById("navUserRole").textContent = user.role.toUpperCase();
+
+      // Role-Based UI Controls
+      const isAdmin = user.role === "admin";
+      toggleFlexButton("btnAddMaterial", isAdmin);
+      toggleFlexButton("btnNavSettings", isAdmin);
+      toggleFlexButton("btnNavTrash", isAdmin);
+      toggleFlexButton("btnNavUsers", isAdmin);
+      toggleFlexButton("btnEditMaterialConfig", isAdmin);
+
+      document.getElementById("thAdminActions").classList.toggle("hidden", !isAdmin);
+      updateTrashBadge();
+
+      // Subtitle hint for restricted staff
+      const allowedList = getPermittedMaterials();
+      if (!isAdmin && allowedList.length === 1) {
+        document.getElementById("portalSubtitle").textContent = `คุณได้รับสิทธิ์ดูแลและบันทึกข้อมูลเฉพาะ "${allowedList[0].name}"`;
+      } else {
+        document.getElementById("portalSubtitle").textContent = "คลิกที่การ์ดวัตถุดิบเพื่อดูระดับถังแบบเรียลไทม์ กราฟแนวโน้ม และบันทึกยอดประจำวัน";
+      }
+
+      renderMainPortal();
+      if (appState.scriptUrl) {
+        syncFromGoogleSheets(false);
+      }
+    }
+
+    function toggleFlexButton(elId, show) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      if (show) {
+        el.classList.remove("hidden");
+        el.classList.add("flex");
+      } else {
+        el.classList.add("hidden");
+        el.classList.remove("flex");
+      }
+    }
+
+    function handleLogout() {
+      appState.currentUser = null;
+      sessionStorage.removeItem("FACTORY_ACTIVE_USER");
+      document.getElementById("loginPass").value = "";
+      document.getElementById("loginOverlay").classList.remove("hidden");
+      applyTheme("light");
+    }
+
+    // Filter materials based on logged-in user's `allowed_materials`
+    function getPermittedMaterials() {
+      const user = appState.currentUser;
+      if (!user) return [];
+      if (user.role === "admin" || String(user.allowed_materials).toUpperCase() === "ALL") {
+        return appState.materials;
+      }
+      const allowedIds = String(user.allowed_materials || "")
+        .split(",")
+        .map(s => s.trim().toUpperCase())
+        .filter(Boolean);
+      return appState.materials.filter(m => allowedIds.includes(m.material_id.toUpperCase()));
+    }
+
+    function saveLocalCache() {
+      localStorage.setItem("FACTORY_MATERIALS_V3", JSON.stringify(appState.materials));
+      localStorage.setItem("FACTORY_LOGS_V3", JSON.stringify(appState.logs));
+      localStorage.setItem("FACTORY_ARCHIVE_V3", JSON.stringify(appState.archivedLogs));
+      localStorage.setItem("FACTORY_USERS_V3", JSON.stringify(appState.usersList));
+      updateTrashBadge();
+    }
+
+    function updateTrashBadge() {
+      const badge = document.getElementById("trashCountBadge");
+      if (badge) badge.textContent = appState.archivedLogs.length;
+    }
+
+    function updateSyncBadge(status = null) {
+      const dot = document.getElementById("syncDot");
+      const txt = document.getElementById("syncText");
+      if (!appState.scriptUrl) {
+        dot.className = "w-2 h-2 rounded-full bg-amber-400";
+        txt.textContent = "โหมดทดลอง (Local)";
+        return;
+      }
+      if (status === "syncing") {
+        dot.className = "w-2 h-2 rounded-full bg-sky-400 animate-ping";
+        txt.textContent = "กำลังซิงก์...";
+      } else if (status === "error") {
+        dot.className = "w-2 h-2 rounded-full bg-red-500";
+        txt.textContent = "ซิงก์ขัดข้อง";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+        txt.textContent = "ออนไลน์ (Sheets)";
+      }
+    }
+
+    // =========================================================================
+    // GOOGLE APPS SCRIPT API SYNC
+    // =========================================================================
+    async function syncFromGoogleSheets(showToastAfter = true) {
+      if (!appState.scriptUrl) {
+        if (showToastAfter) showToast("กำลังใช้งานโหมดทดลอง (ยังไม่ได้เชื่อมต่อ URL)");
+        return;
+      }
+      updateSyncBadge("syncing");
+      const icon = document.getElementById("refreshIcon");
+      if (icon) icon.classList.add("animate-spin");
+
+      try {
+        const res = await fetch(`${appState.scriptUrl}?action=getAll`);
+        const data = await res.json();
+        if (data.status === "success") {
+          applyServerPayload(data);
+          updateSyncBadge("connected");
+          if (showToastAfter) showToast("ซิงก์ข้อมูลล่าสุดจาก Google Sheets เรียบร้อย");
+        } else {
+          updateSyncBadge("error");
+        }
+      } catch (err) {
+        console.error(err);
+        updateSyncBadge("error");
+      } finally {
+        if (icon) icon.classList.remove("animate-spin");
+      }
+    }
+
+    async function postToGoogleSheets(payload) {
+      if (!appState.scriptUrl) return;
+      updateSyncBadge("syncing");
+      try {
+        const res = await fetch(appState.scriptUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          if (data.materials) applyServerPayload(data);
+          updateSyncBadge("connected");
+        }
+      } catch (err) {
+        console.error("Background sync error:", err);
+        updateSyncBadge("error");
+      }
+    }
+
+    function applyServerPayload(data) {
+      if (data.materials && data.materials.length > 0) appState.materials = data.materials;
+      if (data.logs) appState.logs = data.logs;
+      if (data.archivedLogs) appState.archivedLogs = data.archivedLogs;
+      if (data.usersList) appState.usersList = data.usersList;
+      saveLocalCache();
+      renderMainPortal();
+      if (!document.getElementById("viewMaterialDetail").classList.contains("hidden")) {
+        renderMaterialDetail(appState.activeMaterialId);
+      }
+    }
+
+    // =========================================================================
+    // HELPER: COMPUTE METRICS & RECALCULATE CHAIN
+    // =========================================================================
+    function recalculateLocalChain(matId) {
+      const matLogs = appState.logs
+        .filter(l => l.material_id === matId)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      for (let i = 0; i < matLogs.length; i++) {
+        if (i === 0) {
+          matLogs[i].daily_usage = null;
+        } else {
+          const prevTotal = Number(matLogs[i - 1].opening_stock) + Number(matLogs[i - 1].received || 0);
+          matLogs[i].daily_usage = Math.max(0, prevTotal - Number(matLogs[i].opening_stock));
+        }
+      }
+    }
+
+    function getMaterialStats(mat) {
+      const matLogs = appState.logs
+        .filter(l => l.material_id === mat.material_id)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      const latest = matLogs.length > 0 ? matLogs[matLogs.length - 1] : null;
+      const currentStock = latest ? Number(latest.opening_stock) : 0;
+      const pct = Math.min(100, Math.max(0, (currentStock / mat.capacity) * 100));
+
+      const validUsages = matLogs
+        .map(l => l.daily_usage)
+        .filter(u => u !== null && u !== "" && !isNaN(u) && Number(u) > 0);
+      const recent7 = validUsages.slice(-7);
+      const avgDaily = recent7.length > 0
+        ? recent7.reduce((sum, v) => sum + Number(v), 0) / recent7.length
+        : 0;
+
+      const daysLeft = avgDaily > 0 ? (currentStock / avgDaily) : 99;
+      const isLow = currentStock <= mat.min_stock || daysLeft <= mat.lead_days;
+
+      return { matLogs, latest, currentStock, pct, avgDaily, daysLeft, isLow };
+    }
+
+    // =========================================================================
+    // VIEW 1: MAIN PORTAL RENDERING (Filtered by User Permission)
+    // =========================================================================
+    function showMainPortal() {
+      document.getElementById("viewMaterialDetail").classList.add("hidden");
+      document.getElementById("viewMainPortal").classList.remove("hidden");
+      renderMainPortal();
+    }
+
+    function renderMainPortal() {
+      const grid = document.getElementById("materialCardsGrid");
+      grid.innerHTML = "";
+
+      const permittedMaterials = getPermittedMaterials();
+      const lowItems = [];
+
+      if (permittedMaterials.length === 0) {
+        grid.innerHTML = `<div class="col-span-full surface-card rounded-2xl p-8 text-center text-sm text-slate-500">คุณยังไม่ได้รับสิทธิ์เข้าถึงวัตถุดิบใดๆ กรุณาติดต่อ Admin เพื่อกำหนดสิทธิ์</div>`;
+        return;
+      }
+
+      permittedMaterials.forEach(mat => {
+        const stats = getMaterialStats(mat);
+        if (stats.isLow) lowItems.push(`${mat.name} (เหลือ ${stats.currentStock.toLocaleString()} ${mat.unit})`);
+
+        const barColor = stats.isLow ? "#ef4444" : (mat.color || "#2563eb");
+        const statusBadge = stats.isLow
+          ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/30">⚠️ ต้องสั่งซื้อ</span>`
+          : `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30">ปกติ</span>`;
+
+        const card = document.createElement("div");
+        card.className = "surface-card rounded-2xl p-6 card-hover cursor-pointer flex flex-col justify-between";
+        card.onclick = () => openMaterialDetail(mat.material_id);
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <span class="text-xs font-mono-num font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">${mat.material_id}</span>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mt-2">${mat.name}</h3>
+              </div>
+              ${statusBadge}
+            </div>
+
+            <div class="mt-5">
+              <div class="flex justify-between items-end mb-1.5">
+                <span class="text-xs text-slate-500 dark:text-slate-400">ปริมาณคงเหลือ</span>
+                <span class="font-mono-num text-xl font-bold text-slate-900 dark:text-white">
+                  ${stats.currentStock.toLocaleString()} <span class="text-xs font-normal text-slate-400">/ ${mat.capacity.toLocaleString()} ${mat.unit}</span>
+                </span>
+              </div>
+              <div class="w-full h-3.5 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800 p-0.5">
+                <div class="h-full rounded-full transition-all duration-700" style="width: ${stats.pct}%; background-color: ${barColor};"></div>
+              </div>
+              <div class="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+                <span>ระดับถัง: <strong class="text-slate-800 dark:text-slate-200">${stats.pct.toFixed(1)}%</strong></span>
+                <span>Min Stock: ${mat.min_stock.toLocaleString()} ${mat.unit}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800/80 grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span class="text-slate-500 dark:text-slate-400 block">ใช้เฉลี่ย/วัน</span>
+              <span class="font-mono-num font-bold text-slate-800 dark:text-slate-200">${stats.avgDaily > 0 ? stats.avgDaily.toFixed(1) : "-"} ${mat.unit}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-slate-500 dark:text-slate-400 block">คาดการณ์อยู่ได้</span>
+              <span class="font-mono-num font-bold ${stats.isLow ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}">
+                ${stats.avgDaily > 0 ? stats.daysLeft.toFixed(1) + " วัน" : "-"}
+              </span>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      const banner = document.getElementById("portalAlertBanner");
+      if (lowItems.length > 0) {
+        banner.classList.remove("hidden");
+        document.getElementById("portalAlertText").textContent = "รายการที่ต่ำกว่าจุดสั่งซื้อขั้นต่ำ: " + lowItems.join(" | ");
+      } else {
+        banner.classList.add("hidden");
+      }
+    }
+
+    // =========================================================================
+    // VIEW 2: MATERIAL DETAIL RENDERING
+    // =========================================================================
+    function openMaterialDetail(matId) {
+      const permitted = getPermittedMaterials();
+      const targetMat = permitted.find(m => m.material_id === matId) || permitted[0];
+      if (!targetMat) return;
+
+      appState.activeMaterialId = targetMat.material_id;
+      document.getElementById("viewMainPortal").classList.add("hidden");
+      document.getElementById("viewMaterialDetail").classList.remove("hidden");
+      renderMaterialDetail(targetMat.material_id);
+    }
+
+    function renderMaterialDetail(matId) {
+      const permitted = getPermittedMaterials();
+      const mat = permitted.find(m => m.material_id === matId) || permitted[0];
+      if (!mat) return;
+      appState.activeMaterialId = mat.material_id;
+
+      // Render Switcher Tabs ONLY for permitted materials
+      const tabsEl = document.getElementById("quickMaterialTabs");
+      if (permitted.length <= 1) {
+        tabsEl.classList.add("hidden");
+      } else {
+        tabsEl.classList.remove("hidden");
+        tabsEl.innerHTML = permitted.map(m => {
+          const active = m.material_id === mat.material_id;
+          return `<button onclick="renderMaterialDetail('${m.material_id}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${active ? 'bg-sky-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}">${m.material_id}</button>`;
+        }).join("");
+      }
+
+      const stats = getMaterialStats(mat);
+
+      document.getElementById("detailMatBadge").textContent = mat.material_id;
+      document.getElementById("detailMatName").textContent = mat.name;
+      document.getElementById("detailMatSub").textContent = `ความจุถัง: ${mat.capacity.toLocaleString()} ${mat.unit} | จุดสั่งซื้อขั้นต่ำ: ${mat.min_stock.toLocaleString()} ${mat.unit} | สั่งล่วงหน้า: ${mat.lead_days} วัน`;
+      document.querySelectorAll(".unit-label").forEach(el => el.textContent = mat.unit);
+      document.getElementById("kpiStockUnit").textContent = mat.unit;
+      document.getElementById("kpiAvgUnit").textContent = `${mat.unit}/วัน`;
+
+      const pill = document.getElementById("detailStatusPill");
+      if (stats.isLow) {
+        pill.className = "px-3 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/30";
+        pill.textContent = "⚠️ ใกล้หมด / ถึงจุดสั่งซื้อ";
+      } else {
+        pill.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30";
+        pill.textContent = "สถานะปกติ";
+      }
+
+      // Tank Liquid Graphic
+      const fillHeight = (stats.pct / 100) * 200;
+      const liquidY = 225 - fillHeight;
+      document.getElementById("tankLiquidRect").setAttribute("y", liquidY);
+      document.getElementById("tankLiquidRect").setAttribute("height", fillHeight);
+      document.getElementById("tankWavePath").setAttribute("transform", `translate(0, ${liquidY - 100})`);
+      document.getElementById("tankPctText").textContent = `${stats.pct.toFixed(1)}%`;
+
+      const minPct = Math.min(100, Math.max(0, (mat.min_stock / mat.capacity) * 100));
+      const minY = 225 - (minPct / 100) * 200;
+      document.getElementById("tankMinLine").setAttribute("y1", minY);
+      document.getElementById("tankMinLine").setAttribute("y2", minY);
+      document.getElementById("tankMinText").setAttribute("y", minY - 5);
+
+      const stop1 = document.getElementById("liqStop1");
+      const stop2 = document.getElementById("liqStop2");
+      if (stats.isLow) {
+        stop1.setAttribute("stop-color", "#f87171");
+        stop2.setAttribute("stop-color", "#dc2626");
+      } else {
+        stop1.setAttribute("stop-color", mat.color || "#38bdf8");
+        stop2.setAttribute("stop-color", "#0284c7");
+      }
+
+      const angle = -90 + (stats.pct / 100) * 180;
+      document.getElementById("gaugeNeedle").setAttribute("transform", `rotate(${angle}, 100, 105)`);
+
+      document.getElementById("kpiStockVal").textContent = stats.currentStock.toLocaleString();
+      document.getElementById("kpiAvgVal").textContent = stats.avgDaily > 0 ? stats.avgDaily.toFixed(1) : "-";
+      document.getElementById("kpiDaysVal").textContent = stats.avgDaily > 0 ? stats.daysLeft.toFixed(1) : "-";
+
+      const mBox = document.getElementById("machineCheckboxes");
+      mBox.innerHTML = (mat.machines || []).map((mName, idx) => `
+        <label class="cursor-pointer select-none">
+          <input type="checkbox" name="machineOpt" value="${mName}" class="peer hidden" ${idx < 2 ? "checked" : ""}>
+          <span class="inline-block px-2.5 py-1 rounded-lg text-xs border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 peer-checked:bg-sky-600 peer-checked:border-sky-600 peer-checked:text-white transition">
+            ${mName}
+          </span>
+        </label>
+      `).join("");
+
+      document.getElementById("inpStock").value = "";
+      document.getElementById("inpReceived").value = 0;
+      document.getElementById("inpPctHelper").value = "";
+      document.getElementById("inpNote").value = "";
+      document.getElementById("previewUsage").textContent = "-";
+      document.getElementById("previewDays").textContent = "-";
+
+      renderCharts(mat, stats);
+      renderHistoryTable(mat, stats.matLogs);
+    }
+
+    function convertPctToStock() {
+      const mat = appState.materials.find(m => m.material_id === appState.activeMaterialId);
+      const pct = parseFloat(document.getElementById("inpPctHelper").value);
+      if (!mat || isNaN(pct)) return;
+      document.getElementById("inpStock").value = Math.round((pct / 100) * mat.capacity);
+      updateLivePreview();
+    }
+
+    function updateLivePreview() {
+      const mat = appState.materials.find(m => m.material_id === appState.activeMaterialId);
+      if (!mat) return;
+      const stats = getMaterialStats(mat);
+      const stockIn = parseFloat(document.getElementById("inpStock").value);
+      const recvIn = parseFloat(document.getElementById("inpReceived").value) || 0;
+
+      if (isNaN(stockIn)) {
+        document.getElementById("previewUsage").textContent = "-";
+        document.getElementById("previewDays").textContent = "-";
+        return;
+      }
+
+      if (stats.latest) {
+        const prevTotal = Number(stats.latest.opening_stock) + Number(stats.latest.received || 0);
+        const estUsage = Math.max(0, prevTotal - stockIn);
+        document.getElementById("previewUsage").textContent = `${estUsage.toLocaleString()} ${mat.unit}`;
+      }
+
+      const avg = stats.avgDaily > 0 ? stats.avgDaily : 150;
+      const estDays = (stockIn + recvIn) / avg;
+      document.getElementById("previewDays").textContent = `${estDays.toFixed(1)} วัน`;
+    }
+
+    // =========================================================================
+    // SUBMIT NEW ENTRY
+    // =========================================================================
+    function handleEntrySubmit(e) {
+      e.preventDefault();
+      const mat = appState.materials.find(m => m.material_id === appState.activeMaterialId);
+      if (!mat) return;
+
+      const dateVal = document.getElementById("inpDate").value;
+      const stockVal = parseFloat(document.getElementById("inpStock").value);
+      const recvVal = parseFloat(document.getElementById("inpReceived").value) || 0;
+      const noteVal = document.getElementById("inpNote").value.trim();
+      const recorderName = appState.currentUser ? appState.currentUser.full_name : "Unknown";
+
+      const selectedMachines = Array.from(document.querySelectorAll('input[name="machineOpt"]:checked'))
+        .map(cb => cb.value)
+        .join(", ");
+
+      const newEntry = {
+        id: `${mat.material_id}-${Date.now()}`,
+        material_id: mat.material_id,
+        date: dateVal,
+        opening_stock: stockVal,
+        received: recvVal,
+        daily_usage: null,
+        machines_used: selectedMachines,
+        note: noteVal,
+        recorded_by: recorderName
+      };
+
+      appState.logs.push(newEntry);
+      recalculateLocalChain(mat.material_id);
+      saveLocalCache();
+      renderMaterialDetail(mat.material_id);
+      showToast(`บันทึกข้อมูล ${mat.material_id} เรียบร้อยแล้ว!`);
+
+      postToGoogleSheets({
+        action: "addLog",
+        material_id: mat.material_id,
+        date: dateVal,
+        opening_stock: stockVal,
+        received: recvVal,
+        machines_used: selectedMachines,
+        note: noteVal,
+        recorded_by: recorderName
+      });
+    }
+
+    // =========================================================================
+    // CHARTS & HISTORY TABLE (WITH SEARCH & ADMIN EDIT/DELETE)
+    // =========================================================================
+    function renderCharts(mat, stats) {
+      const isDark = appState.theme === "dark";
+      const textColor = isDark ? "#94a3b8" : "#475569";
+      const gridColor = isDark ? "rgba(148,163,184,0.08)" : "rgba(15,23,42,0.06)";
+      const legendColor = isDark ? "#cbd5e1" : "#1e293b";
+
+      const recentLogs = stats.matLogs.slice(-20);
+      const labels = recentLogs.map(l => l.date.slice(5));
+      const stockData = recentLogs.map(l => l.opening_stock);
+      const minLineData = recentLogs.map(() => mat.min_stock);
+      const usageData = recentLogs.map(l => l.daily_usage || 0);
+
+      if (stockChartInstance) stockChartInstance.destroy();
+      const ctx1 = document.getElementById("chartStockTrend").getContext("2d");
+      stockChartInstance = new Chart(ctx1, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: `คงเหลือ (${mat.unit})`,
+              data: stockData,
+              borderColor: mat.color || "#2563eb",
+              backgroundColor: "rgba(37, 99, 235, 0.14)",
+              borderWidth: 2.5,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4
+            },
+            {
+              label: `Min Stock (${mat.min_stock})`,
+              data: minLineData,
+              borderColor: "#ef4444",
+              borderWidth: 2,
+              borderDash: [6, 6],
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: legendColor, font: { family: "Prompt", size: 11 } } }
+          },
+          scales: {
+            x: { ticks: { color: textColor }, grid: { color: gridColor } },
+            y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+          }
+        }
+      });
+
+      if (usageChartInstance) usageChartInstance.destroy();
+      const ctx2 = document.getElementById("chartUsageTrend").getContext("2d");
+      usageChartInstance = new Chart(ctx2, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: `ยอดใช้จริง (${mat.unit})`,
+              data: usageData,
+              backgroundColor: "rgba(16, 185, 129, 0.8)",
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: legendColor, font: { family: "Prompt", size: 11 } } },
+            tooltip: {
+              callbacks: {
+                afterLabel: function(ctx) {
+                  const row = recentLogs[ctx.dataIndex];
+                  const mTxt = row && row.machines_used ? `เครื่องจักร: ${row.machines_used}` : "";
+                  const uTxt = row && row.recorded_by ? `ผู้บันทึก: ${row.recorded_by}` : "";
+                  return [mTxt, uTxt].filter(Boolean);
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: textColor }, grid: { color: gridColor } },
+            y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderHistoryTableFromState() {
+      const mat = appState.materials.find(m => m.material_id === appState.activeMaterialId);
+      if (!mat) return;
+      const stats = getMaterialStats(mat);
+      renderHistoryTable(mat, stats.matLogs);
+    }
+
+    function renderHistoryTable(mat, matLogs) {
+      const tbody = document.getElementById("historyTableBody");
+      const query = (document.getElementById("inpSearchHistory").value || "").trim().toLowerCase();
+      const isAdmin = appState.currentUser && appState.currentUser.role === "admin";
+
+      let filtered = [...matLogs].reverse();
+      if (query) {
+        filtered = filtered.filter(r =>
+          String(r.date).toLowerCase().includes(query) ||
+          String(r.machines_used || "").toLowerCase().includes(query) ||
+          String(r.recorded_by || "").toLowerCase().includes(query) ||
+          String(r.note || "").toLowerCase().includes(query)
+        );
+      }
+
+      tbody.innerHTML = filtered.slice(0, 25).map(row => `
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+          <td class="py-2.5 px-3 font-mono-num text-slate-700 dark:text-slate-300">${row.date}</td>
+          <td class="py-2.5 px-3 text-right font-mono-num font-bold text-slate-900 dark:text-white">${Number(row.opening_stock).toLocaleString()}</td>
+          <td class="py-2.5 px-3 text-right font-mono-num ${Number(row.received) > 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400'}">
+            ${Number(row.received) > 0 ? "+" + Number(row.received).toLocaleString() : "-"}
+          </td>
+          <td class="py-2.5 px-3 text-right font-mono-num font-semibold text-amber-600 dark:text-amber-300">
+            ${row.daily_usage !== null && row.daily_usage !== "" ? Number(row.daily_usage).toLocaleString() : "-"}
+          </td>
+          <td class="py-2.5 px-3 text-xs text-slate-600 dark:text-slate-300">${row.machines_used || "-"}</td>
+          <td class="py-2.5 px-3 text-xs text-sky-600 dark:text-sky-400">${row.recorded_by || "-"}</td>
+          <td class="py-2.5 px-3 text-xs text-slate-500 dark:text-slate-400">${row.note || "-"}</td>
+          ${isAdmin ? `
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">
+              <button onclick="openEditLogModal('${row.id}')" title="แก้ไขรายการ" class="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/40 transition">
+                ✏️
+              </button>
+              <button onclick="handleDeleteLog('${row.id}')" title="ย้ายไปถังขยะสำรอง" class="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/40 transition">
+                🗑️
+              </button>
+            </td>
+          ` : ""}
+        </tr>
+      `).join("");
+    }
+
+    // =========================================================================
+    // ADMIN: EDIT LOG & SOFT DELETE / RESTORE TRASH BIN
+    // =========================================================================
+    function openEditLogModal(logId) {
+      const logItem = appState.logs.find(l => l.id === logId);
+      const mat = appState.materials.find(m => m.material_id === appState.activeMaterialId);
+      if (!logItem || !mat) return;
+
+      document.getElementById("editLogId").value = logItem.id;
+      document.getElementById("editLogDate").value = logItem.date;
+      document.getElementById("editLogStock").value = logItem.opening_stock;
+      document.getElementById("editLogRecv").value = logItem.received || 0;
+      document.getElementById("editLogNote").value = logItem.note || "";
+
+      const selectedList = String(logItem.machines_used || "").split(",").map(s => s.trim());
+      const box = document.getElementById("editMachineCheckboxes");
+      box.innerHTML = (mat.machines || []).map(mName => `
+        <label class="cursor-pointer select-none">
+          <input type="checkbox" name="editMachineOpt" value="${mName}" class="peer hidden" ${selectedList.includes(mName) ? "checked" : ""}>
+          <span class="inline-block px-2.5 py-1 rounded-lg text-xs border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 peer-checked:bg-sky-600 peer-checked:border-sky-600 peer-checked:text-white transition">
+            ${mName}
+          </span>
+        </label>
+      `).join("");
+
+      document.getElementById("editLogModal").classList.remove("hidden");
+    }
+
+    function closeEditLogModal() {
+      document.getElementById("editLogModal").classList.add("hidden");
+    }
+
+    function handleEditLogSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById("editLogId").value;
+      const dateVal = document.getElementById("editLogDate").value;
+      const stockVal = parseFloat(document.getElementById("editLogStock").value);
+      const recvVal = parseFloat(document.getElementById("editLogRecv").value) || 0;
+      const noteVal = document.getElementById("editLogNote").value.trim();
+      const machinesVal = Array.from(document.querySelectorAll('input[name="editMachineOpt"]:checked'))
+        .map(cb => cb.value).join(", ");
+
+      const idx = appState.logs.findIndex(l => l.id === id);
+      if (idx >= 0) {
+        const matId = appState.logs[idx].material_id;
+        appState.logs[idx].date = dateVal;
+        appState.logs[idx].opening_stock = stockVal;
+        appState.logs[idx].received = recvVal;
+        appState.logs[idx].machines_used = machinesVal;
+        appState.logs[idx].note = noteVal;
+
+        recalculateLocalChain(matId);
+        saveLocalCache();
+        closeEditLogModal();
+        renderMaterialDetail(matId);
+        showToast("แก้ไขข้อมูลและคำนวณยอดใช้จริงใหม่ทั้งลูกโซ่แล้ว");
+
+        postToGoogleSheets({
+          action: "editLog",
+          id: id,
+          date: dateVal,
+          opening_stock: stockVal,
+          received: recvVal,
+          machines_used: machinesVal,
+          note: noteVal,
+          actor_role: appState.currentUser.role,
+          actor_name: appState.currentUser.full_name
+        });
+      }
+    }
+
+    function handleDeleteLog(logId) {
+      const idx = appState.logs.findIndex(l => l.id === logId);
+      if (idx < 0) return;
+      const item = appState.logs[idx];
+
+      if (!confirm(`ต้องการลบข้อมูลวันที่ ${item.date} (คงเหลือ ${item.opening_stock}) ใช่หรือไม่?
+(ข้อมูลจะถูกย้ายไปเก็บในถังขยะสำรองและกู้คืนได้)`)) {
+        return;
+      }
+
+      const archivedItem = {
+        ...item,
+        deleted_at: new Date().toLocaleString("th-TH"),
+        deleted_by: appState.currentUser.full_name,
+        delete_reason: "ลบโดย Admin ผ่านหน้าเว็บ"
+      };
+
+      appState.archivedLogs.unshift(archivedItem);
+      appState.logs.splice(idx, 1);
+      recalculateLocalChain(item.material_id);
+      saveLocalCache();
+      renderMaterialDetail(item.material_id);
+      showToast("ย้ายรายการไปที่ถังขยะสำรองแล้ว");
+
+      postToGoogleSheets({
+        action: "deleteLog",
+        id: logId,
+        actor_role: appState.currentUser.role,
+        actor_name: appState.currentUser.full_name,
+        reason: "ลบโดย Admin ผ่านหน้าเว็บ"
+      });
+    }
+
+    function openTrashModal() {
+      const tbody = document.getElementById("trashTableBody");
+      if (appState.archivedLogs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">ไม่มีรายการที่ถูกลบในถังขยะสำรอง</td></tr>`;
+      } else {
+        tbody.innerHTML = appState.archivedLogs.map(item => `
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+            <td class="py-2.5 px-3 font-bold text-sky-600 dark:text-sky-400">${item.material_id}</td>
+            <td class="py-2.5 px-3 font-mono-num">${item.date}</td>
+            <td class="py-2.5 px-3 text-right font-mono-num font-bold">${Number(item.opening_stock).toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-right font-mono-num">${Number(item.received || 0).toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-[11px] text-slate-500">${item.deleted_by || "-"}<br>${item.deleted_at || ""}</td>
+            <td class="py-2.5 px-3 text-center">
+              <button onclick="handleRestoreLog('${item.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold transition">
+                กู้คืน
+              </button>
+            </td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("trashModal").classList.remove("hidden");
+    }
+
+    function closeTrashModal() {
+      document.getElementById("trashModal").classList.add("hidden");
+    }
+
+    function handleRestoreLog(logId) {
+      const idx = appState.archivedLogs.findIndex(a => a.id === logId);
+      if (idx < 0) return;
+      const item = appState.archivedLogs[idx];
+
+      appState.logs.push({
+        id: item.id,
+        material_id: item.material_id,
+        date: item.date,
+        opening_stock: item.opening_stock,
+        received: item.received,
+        daily_usage: item.daily_usage,
+        machines_used: item.machines_used,
+        note: item.note,
+        recorded_by: item.recorded_by
+      });
+      appState.archivedLogs.splice(idx, 1);
+
+      recalculateLocalChain(item.material_id);
+      saveLocalCache();
+      openTrashModal(); // Refresh trash modal list
+      renderMainPortal();
+      if (!document.getElementById("viewMaterialDetail").classList.contains("hidden")) {
+        renderMaterialDetail(appState.activeMaterialId);
+      }
+      showToast(`กู้คืนข้อมูลวันที่ ${item.date} กลับเข้าตารางหลักแล้ว!`);
+
+      postToGoogleSheets({
+        action: "restoreLog",
+        id: logId,
+        actor_role: appState.currentUser.role
+      });
+    }
+
+    // =========================================================================
+    // ADMIN: EDIT EXISTING MATERIAL CONFIG & MACHINES
+    // =========================================================================
+    function openEditMaterialModal() {
+      const mat = appState.materials.find(m => m.material_id === appState.activeMaterialId);
+      if (!mat) return;
+
+      document.getElementById("editMatId").value = mat.material_id;
+      document.getElementById("editMatName").value = mat.name;
+      document.getElementById("editMatUnit").value = mat.unit;
+      document.getElementById("editMatCap").value = mat.capacity;
+      document.getElementById("editMatMin").value = mat.min_stock;
+      document.getElementById("editMatLead").value = mat.lead_days || 3;
+      document.getElementById("editMatColor").value = mat.color || "#2563eb";
+      document.getElementById("editMatMachines").value = (mat.machines || []).join(", ");
+
+      document.getElementById("editMatModal").classList.remove("hidden");
+    }
+
+    function closeEditMaterialModal() {
+      document.getElementById("editMatModal").classList.add("hidden");
+    }
+
+    function handleEditMaterialSubmit(e) {
+      e.preventDefault();
+      const matId = document.getElementById("editMatId").value;
+      const idx = appState.materials.findIndex(m => m.material_id === matId);
+      if (idx < 0) return;
+
+      const updated = {
+        ...appState.materials[idx],
+        name: document.getElementById("editMatName").value.trim(),
+        unit: document.getElementById("editMatUnit").value.trim(),
+        capacity: Number(document.getElementById("editMatCap").value) || 1000,
+        min_stock: Number(document.getElementById("editMatMin").value) || 200,
+        lead_days: Number(document.getElementById("editMatLead").value) || 3,
+        color: document.getElementById("editMatColor").value,
+        machines: document.getElementById("editMatMachines").value.split(",").map(s => s.trim()).filter(Boolean)
+      };
+
+      appState.materials[idx] = updated;
+      saveLocalCache();
+      closeEditMaterialModal();
+      renderMaterialDetail(matId);
+      showToast(`บันทึกการตั้งค่า "${updated.name}" เรียบร้อยแล้ว`);
+
+      postToGoogleSheets({
+        action: "updateMaterial",
+        ...updated,
+        machines: updated.machines.join(", "),
+        actor_role: appState.currentUser.role
+      });
+    }
+
+    // =========================================================================
+    // ADMIN: USER PERMISSIONS MANAGEMENT
+    // =========================================================================
+    function openUsersModal() {
+      const tbody = document.getElementById("usersTableBody");
+      tbody.innerHTML = appState.usersList.map(u => `
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+          <td class="py-2 px-3 font-mono-num font-bold text-slate-800 dark:text-white">${u.username}</td>
+          <td class="py-2 px-3">${u.full_name}</td>
+          <td class="py-2 px-3 uppercase font-bold text-[11px] ${u.role === 'admin' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}">${u.role}</td>
+          <td class="py-2 px-3 font-mono-num text-sky-600 dark:text-sky-400">${u.allowed_materials}</td>
+        </tr>
+      `).join("");
+
+      const matBox = document.getElementById("userAllowedMatCheckboxes");
+      matBox.innerHTML = appState.materials.map(m => `
+        <label class="cursor-pointer select-none">
+          <input type="checkbox" name="usrAllowedMat" value="${m.material_id}" class="peer hidden" checked>
+          <span class="inline-block px-2.5 py-1 rounded-lg text-xs border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 peer-checked:bg-indigo-600 peer-checked:border-indigo-600 peer-checked:text-white transition">
+            ${m.material_id} (${m.name})
+          </span>
+        </label>
+      `).join("");
+
+      document.getElementById("usersModal").classList.remove("hidden");
+    }
+
+    function closeUsersModal() {
+      document.getElementById("usersModal").classList.add("hidden");
+    }
+
+    function handleSaveUserSubmit(e) {
+      e.preventDefault();
+      const uName = document.getElementById("usrName").value.trim().toLowerCase();
+      const uPass = document.getElementById("usrPass").value.trim();
+      const uFull = document.getElementById("usrFull").value.trim();
+      const uRole = document.getElementById("usrRole").value;
+
+      const selectedMats = Array.from(document.querySelectorAll('input[name="usrAllowedMat"]:checked'))
+        .map(cb => cb.value);
+      const allowedStr = uRole === "admin" ? "ALL" : (selectedMats.length > 0 ? selectedMats.join(",") : "LPG");
+
+      const idx = appState.usersList.findIndex(u => u.username === uName);
+      if (idx >= 0) {
+        if (uPass) appState.usersList[idx].password = uPass;
+        appState.usersList[idx].full_name = uFull;
+        appState.usersList[idx].role = uRole;
+        appState.usersList[idx].allowed_materials = allowedStr;
+      } else {
+        appState.usersList.push({
+          username: uName,
+          password: uPass || "1234",
+          full_name: uFull,
+          role: uRole,
+          allowed_materials: allowedStr,
+          theme_pref: "light"
+        });
+      }
+
+      saveLocalCache();
+      openUsersModal();
+      showToast(`อัปเดตสิทธิ์ผู้ใช้ "${uName}" (${allowedStr}) เรียบร้อย`);
+
+      postToGoogleSheets({
+        action: "saveUser",
+        username: uName,
+        password: uPass,
+        full_name: uFull,
+        role: uRole,
+        status: "active",
+        allowed_materials: allowedStr,
+        actor_role: appState.currentUser.role
+      });
+    }
+
+    // =========================================================================
+    // MODALS: ADD MATERIAL & GOOGLE SHEETS SETTINGS
+    // =========================================================================
+    function openSettingsModal() {
+      document.getElementById("inpScriptUrl").value = appState.scriptUrl;
+      document.getElementById("settingsModal").classList.remove("hidden");
+    }
+    function closeSettingsModal() {
+      document.getElementById("settingsModal").classList.add("hidden");
+    }
+    function saveScriptUrl() {
+      const url = document.getElementById("inpScriptUrl").value.trim();
+      appState.scriptUrl = url;
+      localStorage.setItem("FACTORY_GAS_URL", url);
+      closeSettingsModal();
+      updateSyncBadge();
+      if (appState.currentUser) {
+        syncFromGoogleSheets(true);
+      } else {
+        showToast("บันทึก Google Sheets URL แล้ว กรุณาเข้าสู่ระบบ");
+      }
+    }
+    function clearScriptUrl() {
+      appState.scriptUrl = "";
+      localStorage.removeItem("FACTORY_GAS_URL");
+      updateSyncBadge();
+      closeSettingsModal();
+      showToast("เปลี่ยนเป็นโหมดทดลอง (Local) แล้ว");
+    }
+
+    function openAddMaterialModal() {
+      document.getElementById("addMatModal").classList.remove("hidden");
+    }
+    function closeAddMaterialModal() {
+      document.getElementById("addMatModal").classList.add("hidden");
+    }
+    function handleAddMaterial(e) {
+      e.preventDefault();
+      const newMat = {
+        material_id: document.getElementById("newMatId").value.toUpperCase().trim(),
+        name: document.getElementById("newMatName").value.trim(),
+        unit: document.getElementById("newMatUnit").value.trim(),
+        capacity: Number(document.getElementById("newMatCap").value) || 1000,
+        min_stock: Number(document.getElementById("newMatMin").value) || 200,
+        lead_days: 3,
+        color: document.getElementById("newMatColor").value,
+        machines: document.getElementById("newMatMachines").value.split(",").map(s => s.trim()).filter(Boolean)
+      };
+
+      appState.materials.push(newMat);
+      saveLocalCache();
+      closeAddMaterialModal();
+      renderMainPortal();
+      showToast(`เพิ่มวัตถุดิบ "${newMat.name}" เรียบร้อยแล้ว`);
+
+      postToGoogleSheets({
+        action: "addMaterial",
+        ...newMat,
+        machines: newMat.machines.join(", ")
+      });
+    }
+
+    function showToast(msg) {
+      const box = document.getElementById("toastBox");
+      document.getElementById("toastMsg").textContent = msg;
+      box.classList.remove("hidden");
+      setTimeout(() => box.classList.add("hidden"), 3200);
+    }
+  </script>
+</body>
+</html>
