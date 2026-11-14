@@ -471,6 +471,7 @@
                 <th class="py-3 px-3">วันที่</th>
                 <th class="py-3 px-3 text-right">คงเหลือเช้า</th>
                 <th class="py-3 px-3 text-right">รับเข้า</th>
+                <th class="py-3 px-3 text-right">รวมหลังเติม</th>
                 <th class="py-3 px-3 text-right">ใช้จริง</th>
                 <th class="py-3 px-3">เครื่องจักรที่ใช้งาน</th>
                 <th class="py-3 px-3">ผู้บันทึก</th>
@@ -805,7 +806,7 @@
     ];
 
     let appState = {
-      scriptUrl: localStorage.getItem("FACTORY_GAS_URL") || "",
+      scriptUrl: localStorage.getItem("FACTORY_GAS_URL") || "https://script.google.com/macros/s/AKfycbwDq0vqbvGTkB83L4braRkbS2708Jb_-6aN2D1uwcklnhi7ziXbdqVo0h8w6jDSQURy/exec",
       currentUser: JSON.parse(sessionStorage.getItem("FACTORY_ACTIVE_USER")) || null,
       materials: JSON.parse(localStorage.getItem("FACTORY_MATERIALS_V3")) || DEFAULT_MATERIALS,
       logs: JSON.parse(localStorage.getItem("FACTORY_LOGS_V3")) || DEFAULT_LOGS,
@@ -1089,7 +1090,9 @@
 
     function applyServerPayload(data) {
       if (data.materials && data.materials.length > 0) appState.materials = data.materials;
-      if (data.logs) appState.logs = data.logs;
+      if (data.logs) {
+        appState.logs = data.logs.map(l => ({ ...l, date: formatCleanDate(l.date) }));
+      }
       if (data.archivedLogs) appState.archivedLogs = data.archivedLogs;
       if (data.usersList) appState.usersList = data.usersList;
       saveLocalCache();
@@ -1102,6 +1105,20 @@
     // =========================================================================
     // HELPER: COMPUTE METRICS & RECALCULATE CHAIN
     // =========================================================================
+    function formatCleanDate(d) {
+      if (!d) return "-";
+      const str = String(d).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      const parsed = new Date(str);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, "0");
+        const day = String(parsed.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      }
+      return str.slice(0, 10);
+    }
+
     function recalculateLocalChain(matId) {
       const matLogs = appState.logs
         .filter(l => l.material_id === matId)
@@ -1123,7 +1140,7 @@
         .sort((a, b) => a.date.localeCompare(b.date));
 
       const latest = matLogs.length > 0 ? matLogs[matLogs.length - 1] : null;
-      const currentStock = latest ? Number(latest.opening_stock) : 0;
+      const currentStock = latest ? (Number(latest.opening_stock) + Number(latest.received || 0)) : 0;
       const pct = Math.min(100, Math.max(0, (currentStock / mat.capacity) * 100));
 
       const validUsages = matLogs
@@ -1418,8 +1435,8 @@
       const legendColor = isDark ? "#cbd5e1" : "#1e293b";
 
       const recentLogs = stats.matLogs.slice(-20);
-      const labels = recentLogs.map(l => l.date.slice(5));
-      const stockData = recentLogs.map(l => l.opening_stock);
+      const labels = recentLogs.map(l => formatCleanDate(l.date).slice(5));
+      const stockData = recentLogs.map(l => Number(l.opening_stock) + Number(l.received || 0));
       const minLineData = recentLogs.map(() => mat.min_stock);
       const usageData = recentLogs.map(l => l.daily_usage || 0);
 
@@ -1527,11 +1544,12 @@
 
       tbody.innerHTML = filtered.slice(0, 25).map(row => `
         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-          <td class="py-2.5 px-3 font-mono-num text-slate-700 dark:text-slate-300">${row.date}</td>
-          <td class="py-2.5 px-3 text-right font-mono-num font-bold text-slate-900 dark:text-white">${Number(row.opening_stock).toLocaleString()}</td>
+          <td class="py-2.5 px-3 font-mono-num text-slate-700 dark:text-slate-300">${formatCleanDate(row.date)}</td>
+          <td class="py-2.5 px-3 text-right font-mono-num text-slate-700 dark:text-slate-300">${Number(row.opening_stock).toLocaleString()}</td>
           <td class="py-2.5 px-3 text-right font-mono-num ${Number(row.received) > 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400'}">
             ${Number(row.received) > 0 ? "+" + Number(row.received).toLocaleString() : "-"}
           </td>
+          <td class="py-2.5 px-3 text-right font-mono-num font-bold text-sky-600 dark:text-sky-400">${(Number(row.opening_stock) + Number(row.received || 0)).toLocaleString()}</td>
           <td class="py-2.5 px-3 text-right font-mono-num font-semibold text-amber-600 dark:text-amber-300">
             ${row.daily_usage !== null && row.daily_usage !== "" ? Number(row.daily_usage).toLocaleString() : "-"}
           </td>
